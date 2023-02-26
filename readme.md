@@ -7,10 +7,12 @@ sort big file or stream
 ### shell
 
 ```shell
-bigsort -i  bookcorpus.txt -o sorted.txt 
-cat bookcorpus.txt |  bigsort --sortType=d --unique=1 > sorted.txt
-bigsort -i sorted.txt -c ">"  # check
-cat bookcorpus.txt | bigsort --sortType=R > sorted.txt
+bigsort -i  readme.md -o sorted.txt  # default sort in increase 
+cat readme.md |  bigsort --sortType=d --unique=1 > sorted.txt  # sort pipe, order in descend
+bigsort -i sorted.txt -c ">"  # check order
+cat readme.md | bigsort --sortType=R > sorted.txt  # shuffle
+
+bigsort -i  readme.md --unique=1  | bigsort --sortType=R > sorted.txt   # unique and shufle 
 
 head -c 100000 /dev/urandom | bigsort >sorted.txt  # just try
 ```
@@ -22,11 +24,11 @@ import os
 from bigsort import BigSort,bigsort,sortFile,check,bisect
 
 # sort in file
-sortFile("cat bookcorpus.txt","sorted.txt",budget=0.8)
+sortFile("cat readme.md","sorted.txt",budget=0.8)
 check(open("sorted.txt"),"<=")
 
 # sort in pipe
-bigsort(os.popen("cat bookcorpus.txt"),open("sorted.txt",'w',buffering=1024*1024),unique=1,sortType="d",budget=0.8)
+bigsort(os.popen("cat readme.md"),open("sorted.txt",'w',buffering=1024*1024),unique=1,sortType="d",budget=0.8)
 check(open("sorted.txt"),">")
 ```
 

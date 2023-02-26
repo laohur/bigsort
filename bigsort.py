@@ -3,12 +3,13 @@ import psutil,os,argparse,random
 import tempfile,math
 from logzero import logger
 
+# logger.info()
 import logging
 logger = logging.getLogger()
 logger.propagate = False
 logger.handlers.clear()
-logger.setLevel(level=logging.INFO)
-# logger.setLevel(level=logging.DEBUG)
+# logger.setLevel(level=logging.INFO)
+logger.setLevel(level=logging.ERROR)
 # handler = logging.FileHandler("log.txt")
 handler = logging.StreamHandler()
 handler.setLevel(logging.INFO)
@@ -191,27 +192,26 @@ class BigSort:
         logger.info(f"reduce done! {n_read} --> {n_write} {vars(writer)}")
             
     def sort(self,reader,writer):
-        import time
-        t0=time.time()    
+        # import time
+        # t0=time.time()    
         temp_dir = tempfile.TemporaryDirectory(dir=self.tmpDir)
         Nodes,bucket=self.map(reader,temp_dir.name)
-        t1=time.time()    
+        # t1=time.time()    
         self.reduce(Nodes,writer,bucket)
-        writer.close()
-        temp_dir.cleanup()
-        t2=time.time()    
-        logger.info(f"map {t1-t0} reduce {t2-t1}")
+        # temp_dir.cleanup()
+        # t2=time.time()    
+        # logger.info(f"map {t1-t0} reduce {t2-t1}")
 
 def bigsort(reader,writer,sortType='i',unique=False,budget=0.8,nSplit=10,nLine=10000,tmpDir=None):
     sorter=BigSort(sortType=sortType,unique=unique,budget=budget,nSplit=nSplit,nLine=nLine,tmpDir=tmpDir)
     sorter.sort(reader,writer)
+    writer.flush()
     
 def sortFile(src=None,tgt=None,sortType='i',unique=False,budget=0.8,nSplit=10,nLine=10000,tmpDir=None,buffering=1024*1024):
     if not src:
         reader=sys.stdin
     else:
         if ' ' not in src:
-            print(src)
             src="cat " + src
         reader=os.popen(src)
     if not tgt:
@@ -243,19 +243,19 @@ def check(reader,Ordering='<='):
             continue
         # assert last<l
         assert cmp(last,l), f"{last} {Ordering} {l}"
-    logger.info(f'check {i+1} lines {Ordering}, ok!')
+    print(f'check {i+1} lines {Ordering} , ok!')
     return True
 
 def main():
     parser = argparse.ArgumentParser()
     # parser.add_argument("src") # sys.stdin
     # parser.add_argument("tgt") # sys.stdout
-    parser.add_argument("-i","--input",default=None) 
+    parser.add_argument("-i","--input",default="readme.md") 
     parser.add_argument("-o","--output", default=None) 
     parser.add_argument("--buffering",type=int, default=1024*1024)
     parser.add_argument("--nSplit",type=int, default=10)   #  bigger if skew or shuffle
     parser.add_argument("--nLine",type=int, default=100000)  
-    parser.add_argument("--budget",type=float, default=0.8)  # 0.8 memary budget in ratio
+    parser.add_argument("--budget",type=float, default=0.5)  # 0.8 memary budget in ratio
     parser.add_argument("-u","--unique", default=False)  # only when sort
     parser.add_argument("-s","--sortType", default="i")  # one of  'i/d/R': increase descend random
     parser.add_argument("-T","--tmpDir", default=None)  # None "_tmp_"
