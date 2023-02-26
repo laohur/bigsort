@@ -202,8 +202,8 @@ class BigSort:
         # t2=time.time()    
         # logger.info(f"map {t1-t0} reduce {t2-t1}")
 
-def bigsort(reader,writer,sortType='i',unique=False,budget=0.8,nSplit=10,nLine=10000,tmpDir=None):
-    sorter=BigSort(sortType=sortType,unique=unique,budget=budget,nSplit=nSplit,nLine=nLine,tmpDir=tmpDir)
+def bigsort(reader,writer,sortType='i',unique=False,budget=0.8,nSplit=10,nLine=10000,tmpDir=None,sortFn=sortFn,splitFn=splitFn):
+    sorter=BigSort(sortType=sortType,unique=unique,budget=budget,nSplit=nSplit,nLine=nLine,tmpDir=tmpDir,sortFn=sortFn,splitFn=splitFn)
     sorter.sort(reader,writer)
     writer.flush()
     

@@ -47,7 +47,7 @@ def splitFn(queue,sortType,pivot,nSplit):
     return lines,queue
 
 
-def bigsort(reader,writer,sortType='i',unique=False,budget=0.8,nSplit=10,nLine=10000,tmpDir=None):
+def bigsort(reader,writer,sortType='i',unique=False,budget=0.8,nSplit=10,nLine=10000,tmpDir=None,sortFn=sortFn,splitFn=splitFn):
     sorter=BigSort(sortType=sortType,unique=unique,budget=budget,nSplit=nSplit,nLine=nLine,tmpDir=tmpDir,sortFn=sortFn,splitFn=splitFn)
     sorter.sort(reader,writer)
 

@@ -15,7 +15,7 @@ setup(
     name="bigsort",
     # packages=find_packages(),
     py_modules=['bigsort'],
-    version='0.0.1',
+    version='0.0.2',
     description='sort big file or streams',
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -35,4 +35,5 @@ setup(
 python setup.py sdist
 python setup.py bdist_wheel
 twine upload dist/*
+
 """

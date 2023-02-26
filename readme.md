@@ -1,5 +1,5 @@
 # bigsort
-sort big file or stream
+sort or shuffle big file/stream
 
 ## usage
 > pip install bigsort 
@@ -8,11 +8,11 @@ sort big file or stream
 
 ```shell
 bigsort -i  readme.md -o sorted.txt  # default sort in increase 
-cat readme.md |  bigsort --sortType=d --unique=1 > sorted.txt  # sort pipe, order in descend
+cat readme.md |  bigsort --sortType=d --unique=1 > sorted.txt  # sort pipe, order in descend, unique
 bigsort -i sorted.txt -c ">"  # check order
 cat readme.md | bigsort --sortType=R > sorted.txt  # shuffle
 
-bigsort -i  readme.md --unique=1  | bigsort --sortType=R > sorted.txt   # unique and shufle 
+bigsort -i  readme.md --unique=1   | bigsort --sortType=R > sorted.txt   # unique and shufle 
 
 head -c 100000 /dev/urandom | bigsort >sorted.txt  # just try
 ```
@@ -58,7 +58,7 @@ def splitFn(queue,sortType,pivot,nSplit):
     queue=[] if idx==len(queue) else queue[idx:]
     return lines,queue
 
-def bigsort(reader,writer,sortType='i',unique=False,budget=0.8,nSplit=10,nLine=10000,tmpDir=None):
+def bigsort(reader,writer,sortType='i',unique=False,budget=0.8,nSplit=10,nLine=10000,tmpDir=None,sortFn=sortFn,splitFn=splitFn):
     sorter=BigSort(sortType=sortType,unique=unique,budget=budget,nSplit=nSplit,nLine=nLine,tmpDir=tmpDir,sortFn=sortFn,splitFn=splitFn)
     sorter.sort(reader,writer)
 ```
