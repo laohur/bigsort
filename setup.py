@@ -15,17 +15,21 @@ setup(
     name="bigsort",
     # packages=find_packages(),
     py_modules=['bigsort'],
-    version='0.0.2',
+    version='0.0.3',
     description='sort big file or streams',
     long_description=long_description,
     long_description_content_type="text/markdown",
     python_requires='>=3.0',
-    entry_points = {
+    install_requires=[
+        "psutil",
+    ],
+
+    entry_points={
         "console_scripts": ["bigsort=bigsort:main"]
     },
 
     url='https://github.com/laohur/bigsort',
-    keywords=['bigsort', 'sort',"external sort","big file sort"],
+    keywords=['bigsort', 'sort', "external sort", "big file sort"],
     author='laohur',
     author_email='laohur@gmail.com',
     license='[Anti-996 License](https: // github.com/996icu/996.ICU/blob/master/LICENSE)',
