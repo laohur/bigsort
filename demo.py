@@ -14,7 +14,7 @@ def test():
 # test()
 
 # sort in file
-sortFile("cat C:/data/bookcorpus/*.txt", "sorted.txt", budget=0.1)
+sortFile("cat C:/data/bookcorpus/*.txt", "sorted.txt", budget=0.1,buffering=1024*1024*32)
 check(open("sorted.txt"), "<=")
 
 # sort in pipe
