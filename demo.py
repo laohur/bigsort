@@ -68,7 +68,12 @@ def splitFn(queue, sortType, pivot, nSplit):
     queue = [] if idx == len(queue) else queue[idx:]
     return lines, queue
 
-
-def bigsort(reader, writer, sortType='i', unique=False, budget=0.8, nSplit=10, nLine=10000, tmpDir=None, sortFn=sortFn, splitFn=splitFn):
-    sorter = BigSort(sortType=sortType, unique=unique, budget=budget, nSplit=nSplit, nLine=nLine, tmpDir=tmpDir, sortFn=sortFn, splitFn=splitFn)
-    sorter.sort(reader, writer)
+import tempfile
+def bigsort(reader, writer, sortType='i', unique=False,head=-1, budget=0.8, nSplit=10, nLine=10000, tmpDir=None, sortFn=sortFn, splitFn=splitFn):
+    temp_dir = tempfile.TemporaryDirectory(dir=tmpDir)
+    sorter = BigSort(sortType=sortType, unique=unique,head=head, budget=budget, nSplit=nSplit, nLine=nLine, tmpDir=tmpDir, sortFn=sortFn, splitFn=splitFn)
+    lines=sorter.sort(reader, temp_dir.name)
+    for l in lines:
+        writer.write(l)
+    writer.flush()
+    temp_dir.cleanup()    

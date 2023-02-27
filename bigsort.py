@@ -1,11 +1,12 @@
 import operator
 import sys
 import psutil
-import os
+import os,time
 import argparse
 import random
 import tempfile
 import math
+from multiprocessing import Queue, Process
 
 import logzero
 from logzero import logger
@@ -160,71 +161,65 @@ class BigSort:
         logger.info(f"map done!  {vars(reader)}  maped:{total}  -->  Nodes:{len(Nodes)} ")
         return Nodes
 
-    def write(self, doc, writer, last=None):
-        self.n_readed+=len(doc)
-        for x in doc:
-            if self.n_writed>=self.head>=0:
-                return 
-            if self.unique and  x == last:
-                continue
-            writer.write(x)
-            last = x
-            self.n_writed+=1
-        return last
-
-    def reduce(self, Nodes, writer):
+    def reduce(self, Nodes):
         queue = []
         n_read = 0
         n_write = 0
-        last = None
 
-        Nodes = self.sortFn(Nodes, self.sortType)
-        for i, x in enumerate(Nodes):
-            node = x[-1]
+        for i, node in enumerate(Nodes):
             bucket = node.catch()
             queue += bucket
-            pivot = Nodes[i+1][-1].head if i != len(Nodes)-1 else None
+            pivot = Nodes[i+1].head if i != len(Nodes)-1 else None
             queue = self.sortFn(queue, self.sortType)
             lines, queue = self.splitFn(queue, self.sortType, pivot, self.nSplit)
-            last = self.write(lines, writer, last)
+            # last = self.write(lines, writer, last)
+            for l in lines:
+                yield l
             r1 = len(bucket)
             w1 = len(lines)
             n_read += r1
             n_write += w1
             if i % self.nSplit == 0:
                 logger.info(f"Node:{i}/{len(Nodes)} n_read:{n_read} -- n_write:{n_write} queue:{len(queue)}  r1:{r1} -> w1:{w1}   {r1-w1} ")
+        logger.info(f"reduce done! n_read:{n_read} --> n_write:{n_write} ")
 
-        if queue:
-            pivot = None
-            queue = self.sortFn(queue, self.sortType)
-            lines, queue = self.splitFn(queue, self.sortType, pivot, self.nSplit)
-            last = self.write(lines, writer, last)
-            r1 = len(bucket)
-            w1 = len(lines)
-            n_read += r1
-            n_write += w1
-            logger.info(f"Node:{i}/{len(Nodes)} n_read:{n_read} -- n_write:{n_write} queue:{len(queue)}  r1:{r1} -> w1:{w1}   {r1-w1} ")
+    def outflow(self, reciver):
+        last = None
+        for x in reciver:
+            self.n_readed+=1
+            if self.n_writed>=self.head>=0:
+                return 
+            if self.unique and  x == last:
+                continue
+            last = x
+            self.n_writed+=1
+            yield x
 
-        logger.info(f"reduce done! n_read:{n_read} --> n_write:{n_write} {vars(writer)}")
-
-    def sort(self, reader, writer):
+    def sort(self, reader,tmpDir):
         # import time
         # t0=time.time()
-        temp_dir = tempfile.TemporaryDirectory(dir=self.tmpDir)
-        Nodes = self.map(reader, temp_dir.name)
+        Nodes = self.map(reader, tmpDir)
         Nodes = [(x.head, x.tail,i,x) for i,x in enumerate(Nodes)]
+        Nodes = self.sortFn(Nodes, self.sortType)
+        Nodes = [ x[-1] for x in Nodes]
         # t1=time.time()
-        self.reduce(Nodes, writer)
-        temp_dir.cleanup()
+        reciver=self.reduce(Nodes)
+        lines=self.outflow(reciver)
+
         # t2=time.time()
         # logger.info(f"map {t1-t0} reduce {t2-t1}")
         logger.info(f" n_readed:{self.n_readed} n_writed:{self.n_writed}")
+        return lines
 
 
 def bigsort(reader, writer, sortType='i', unique=False,head=-1, budget=0.8, nSplit=10, nLine=10000, tmpDir=None, sortFn=sortFn, splitFn=splitFn):
+    temp_dir = tempfile.TemporaryDirectory(dir=tmpDir)
     sorter = BigSort(sortType=sortType, unique=unique,head=head, budget=budget, nSplit=nSplit, nLine=nLine, tmpDir=tmpDir, sortFn=sortFn, splitFn=splitFn)
-    sorter.sort(reader, writer)
+    lines=sorter.sort(reader, temp_dir.name)
+    for l in lines:
+        writer.write(l)
     writer.flush()
+    temp_dir.cleanup()    
 
 
 def sortFile(src=None, tgt=None, sortType='i', unique=False,head=-1, budget=0.8, nSplit=10, nLine=10000, tmpDir=None, buffering=1024*1024):
@@ -277,7 +272,7 @@ def main():
     parser.add_argument("--buffering", type=int, default=1024*1024)
     parser.add_argument("--nSplit", type=int, default=10)  # bigger if skew or shuffle
     parser.add_argument("--nLine", type=int, default=100000)
-    parser.add_argument("-m","--budget", type=float, default=0.5)  # 0.8 memary budget in ratio
+    parser.add_argument("-M","--budget", type=float, default=0.5)  # 0.8 memary budget in ratio
     parser.add_argument("-u", "--unique", default=False)  # only when sort
     parser.add_argument("-s", "--sortType", default="i")  # one of  'i/d/R': increase descend random
     parser.add_argument("-n","--number", type=int,default=-1)  # number from head
