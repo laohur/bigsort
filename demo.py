@@ -11,15 +11,15 @@ def test():
     bisect(a, 100, lambda x, y: x >= y)
 
 
-test()
+# test()
 
 # sort in file
-sortFile("cat bookcorpus.txt", "sorted.txt", budget=0.1)
+sortFile("cat C:/data/bookcorpus/*.txt", "sorted.txt", budget=0.1)
 check(open("sorted.txt"), "<=")
 
 # sort in pipe
-bigsort(os.popen("cat bookcorpus.txt"), open("sorted.txt", 'w', buffering=1024*1024), unique=1, sortType="d", budget=0.1)
-check(open("sorted.txt"), ">")
+# bigsort(os.popen("cat bookcorpus.txt"), open("sorted.txt", 'w', buffering=1024*1024), unique=1, sortType="d", budget=0.1)
+# check(open("sorted.txt"), ">")
 
 # sort in shell
 """
@@ -27,7 +27,7 @@ bigsort -i  readme.md -o sorted.txt  # default sort in increase
 cat readme.md |  bigsort --sortType=d --unique=1 > sorted.txt  # sort pipe, order in descend, unique
 bigsort -i sorted.txt -c ">"  # check order
 bigsort -i  readme.md --unique=1   | bigsort --sortType=R > sorted.txt   # unique and shufle 
-seq 0  10123456789  | bigsort --sortType=d -T "./"  > sorted.txt  # just try sort 10^10 numbers
+seq 0  1123456789  | bigsort --sortType=d -T "./"  > sorted.txt  # just try sort 10^10 numbers
 """
 
 # custom sort

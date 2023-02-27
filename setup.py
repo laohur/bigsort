@@ -22,6 +22,7 @@ setup(
     python_requires='>=3.0',
     install_requires=[
         "psutil",
+        "logzero"
     ],
 
     entry_points={

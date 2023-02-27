@@ -11,7 +11,7 @@ bigsort -i  readme.md -o sorted.txt  # default sort in increase
 cat readme.md |  bigsort --sortType=d --unique=1 > sorted.txt  # sort pipe, order in descend, unique
 bigsort -i sorted.txt -c ">"  # check order
 bigsort -i  readme.md --unique=1   | bigsort --sortType=R > sorted.txt   # unique and shufle 
-seq 0  10123456789  | bigsort --sortType=d -T "./"  > sorted.txt  # just try sort 10^10 numbers
+seq 0  10123456789  | bigsort --sortType=d -T "./"  -n 100   # just try sort 10^10 numbers and take first 100 lines
 ```
 
 ### python
