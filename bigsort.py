@@ -43,6 +43,8 @@ def bisect(arr, val, cmp):
 
 
 def splitFn(queue, sortType, pivot, nSplit):
+    if sortType == 'R':
+        random.shuffle(queue)
     if pivot == None:
         return queue, []
     if sortType == 'R':
@@ -57,13 +59,12 @@ def splitFn(queue, sortType, pivot, nSplit):
 
 
 class Block:
-    def __init__(self, path, bucket, sortType, nSplit, buffering, sortFn) -> None:
+    def __init__(self, path, bucket, sortType, step, buffering, sortFn) -> None:
         self.path = path
         if not os.path.exists(path):
             os.makedirs(path)
         self.n_line = len(bucket)
         bucket = sortFn(bucket, sortType)
-        step = math.ceil(len(bucket)/nSplit)
         Nodes = []
         for i in range(0, len(bucket), step):
             batch = bucket[i:i+step]
@@ -95,11 +96,12 @@ class Node:
 
 
 class BigSort:
-    def __init__(self, sortType='i', unique=False, head=-1, budget=0.8, nSplit=10, nLine=100000, buffering=1024*1024, tmpDir=None, sortFn=sortFn, splitFn=splitFn):
-        self.head = head
+    def __init__(self, sortType='i', unique=False, nHead=-1, budget=0.8, nSplit=10, nLine=100000, buffering=1024*1024, tmpDir=None, sortFn=sortFn, splitFn=splitFn):
+        self.nHead = nHead
         self.buffering = buffering
         self.nSplit = nSplit
         self.nLine = nLine
+        self.step = nLine
         self.budget = budget
         self.unique = unique
         assert sortType in 'idR'
@@ -110,7 +112,7 @@ class BigSort:
         self.sortFn = sortFn
         self.splitFn = splitFn
         self.MEM = free()*budget
-        logger.info(f"MEM  {self.MEM//1024//1024}M")
+        logger.info(f"MEM bedget {self.MEM//1024//1024}M")
         self.n_readed = 0
         self.n_writed = 0
 
@@ -127,8 +129,9 @@ class BigSort:
                     continue
                 total += len(bucket)
                 block_dir = f"{folder}/block-{n_block}"
-                block = Block(block_dir, bucket, self.sortType, self.nSplit, self.buffering, self.sortFn)
-                logger.info(f"map:{total} bucket:{len(bucket)} --> {block_dir}")
+                step = max(math.ceil(len(bucket)/self.nSplit), self.step)
+                logger.info(f"map:{total} {n_block} bucket:{len(bucket)} --> {block_dir} step:{step}")
+                block = Block(block_dir, bucket, self.sortType, step, self.buffering, self.sortFn)
                 Nodes += block.Nodes
                 bucket = []
                 n_block += 1
@@ -142,8 +145,9 @@ class BigSort:
             else:
                 total += len(bucket)
                 block_dir = f"{folder}/block-{n_block}"
-                block = Block(block_dir, bucket, self.sortType, self.nSplit, self.buffering, self.sortFn)
-                logger.info(f"map:{total} bucket:{len(bucket)} --> {block_dir}")
+                step = max(math.ceil(len(bucket)/self.nSplit), self.step)
+                logger.info(f"map:{total} {n_block} bucket:{len(bucket)} --> {block_dir} step:{step}")
+                block = Block(block_dir, bucket, self.sortType, step, self.buffering, self.sortFn)
                 Nodes += block.Nodes
         logger.info(f"map done!  {vars(reader)}  maped:{total}  -->  Nodes:{len(Nodes)} ")
         return Nodes
@@ -152,34 +156,33 @@ class BigSort:
         queue = []
         n_read = 0
         n_write = 0
-
         for i, node in enumerate(Nodes):
             bucket = node.catch()
             queue += bucket
             pivot = Nodes[i+1].head if i != len(Nodes)-1 else None
             queue = self.sortFn(queue, self.sortType)
             lines, queue = self.splitFn(queue, self.sortType, pivot, self.nSplit)
-            for l in lines:
-                yield l
             r1 = len(bucket)
             w1 = len(lines)
             n_read += r1
             n_write += w1
-            if i % self.nSplit == 0:
-                logger.info(f"Node:{i}/{len(Nodes)} n_read:{n_read} -- n_write:{n_write} queue:{len(queue)}  r1:{r1} -> w1:{w1}   {r1-w1} ")
+            logger.info(f"Node:{i}/{len(Nodes)} n_read:{n_read} -- n_write:{n_write} queue:{len(queue)}  r1:{r1} -> w1:{w1}   {r1-w1} ")
+            yield lines
         logger.info(f"reduce done! n_read:{n_read} --> n_write:{n_write} ")
 
     def outflow(self, reciver):
         last = None
-        for x in reciver:
-            self.n_readed += 1
-            if self.n_writed >= self.head >= 0:
-                return
-            if self.unique and x == last:
-                continue
-            last = x
-            self.n_writed += 1
-            yield x
+        for bucket in reciver:
+            for x in bucket:
+                self.n_readed += 1
+                if self.n_writed >= self.nHead >= 0:
+                    return
+                if self.unique and x == last:
+                    continue
+                last = x
+                self.n_writed += 1
+                yield x
+        logger.info(f" n_readed:{self.n_readed} n_writed:{self.n_writed}")
 
     def sort(self, reader, tmpDir):
         # t0=time.time()
@@ -194,21 +197,19 @@ class BigSort:
         lines = self.outflow(reciver)
         # t2=time.time()
 
-        logger.info(f" n_readed:{self.n_readed} n_writed:{self.n_writed}")
         return lines
 
 
-def bigsort(reader, writer, sortType='i', unique=False, head=-1, budget=0.8, nSplit=10, nLine=10000, tmpDir=None, sortFn=sortFn, splitFn=splitFn):
+def bigsort(reader, writer, sortType='i', unique=False, nHead=-1, budget=0.8, nSplit=10, nLine=10000, tmpDir=None, sortFn=sortFn, splitFn=splitFn):
     temp_dir = tempfile.TemporaryDirectory(dir=tmpDir)
-    sorter = BigSort(sortType=sortType, unique=unique, head=head, budget=budget, nSplit=nSplit, nLine=nLine, tmpDir=tmpDir, sortFn=sortFn, splitFn=splitFn)
+    sorter = BigSort(sortType=sortType, unique=unique, nHead=nHead, budget=budget, nSplit=nSplit, nLine=nLine, tmpDir=tmpDir, sortFn=sortFn, splitFn=splitFn)
     lines = sorter.sort(reader, temp_dir.name)
     for l in lines:
         writer.write(l)
-    writer.flush()
     temp_dir.cleanup()
 
 
-def sortFile(src=None, tgt=None, sortType='i', unique=False, head=-1, budget=0.8, nSplit=10, nLine=10000, tmpDir=None, buffering=1024*1024):
+def sortFile(src=None, tgt=None, sortType='i', unique=False, nHead=-1, budget=0.8, nSplit=10, nLine=10000, tmpDir=None, buffering=1024*1024):
     if not src:
         reader = sys.stdin
     else:
@@ -219,8 +220,8 @@ def sortFile(src=None, tgt=None, sortType='i', unique=False, head=-1, budget=0.8
         writer = sys.stdout
     else:
         writer = open(tgt, 'w', buffering=buffering)
-    bigsort(reader, writer, sortType=sortType, unique=unique, head=head, budget=budget, nSplit=nSplit, nLine=nLine, tmpDir=tmpDir)
-    # writer.close()
+    bigsort(reader, writer, sortType=sortType, unique=unique, nHead=nHead, budget=budget, nSplit=nSplit, nLine=nLine, tmpDir=tmpDir)
+    writer.close()
 
 
 # https://docs.python.org/3/library/operator.html
@@ -255,13 +256,13 @@ def main():
     # parser.add_argument("tgt") # sys.stdout
     parser.add_argument("-i", "--input", default=None)
     parser.add_argument("-o", "--output", default=None)
-    parser.add_argument("-b","--buffering", type=int, default=1024*1024)
+    parser.add_argument("-b", "--buffering", type=int, default=1024*1024)
     parser.add_argument("--nSplit", type=int, default=10)  # bigger if skew or shuffle
     parser.add_argument("--nLine", type=int, default=100000)
-    parser.add_argument("-M", "--budget", type=float, default=0.5)  # 0.8 memary budget in ratio
+    parser.add_argument("-M", "--budget", type=float, default=0.4)  # 0.8 memary budget in ratio if single pipe
     parser.add_argument("-u", "--unique", default=False)  # only when sort
     parser.add_argument("-s", "--sortType", default="i")  # one of  'i/d/R': increase descend random
-    parser.add_argument("-n", "--number", type=int, default=-1)  # number from head
+    parser.add_argument("-n", "--nHead", type=int, default=-1)  # number from head
     parser.add_argument("-T", "--tmpDir", default=None)  # None "_tmp_"
     parser.add_argument("-c", "--checkOrdering")  # check file order
     args = parser.parse_args()
@@ -276,7 +277,7 @@ def main():
             reader = os.popen(src)
         check(reader, args.checkOrdering)
     else:
-        sortFile(args.input, args.output, sortType=args.sortType, unique=args.unique, head=args.number, budget=args.budget, tmpDir=args.tmpDir, nSplit=args.nSplit, nLine=args.nLine, buffering=args.buffering)
+        sortFile(args.input, args.output, sortType=args.sortType, unique=args.unique, nHead=args.nHead, budget=args.budget, tmpDir=args.tmpDir, nSplit=args.nSplit, nLine=args.nLine, buffering=args.buffering)
     # sortFile("cat bookcorpus.txt","sorted.txt")
     # check(open("sorted.txt"),"<=")
 
