@@ -2,6 +2,7 @@ import random
 import os
 
 from bigsort import BigSort, bigsort, sortFile, check, bisect
+# from bigsortQ import BigSort, bigsort, sortFile, check, bisect
 
 
 def test():
@@ -14,7 +15,7 @@ def test():
 # test()
 
 # sort in file
-sortFile("cat C:/data/bookcorpus/*.txt", "sorted.txt", budget=0.1,buffering=1024*1024*32)
+sortFile("cat C:/data/bookcorpus/*.txt", "sorted.txt", budget=0.1)
 check(open("sorted.txt"), "<=")
 
 # sort in pipe
@@ -56,6 +57,8 @@ def bisect(arr, val, cmp):
 
 
 def splitFn(queue, sortType, pivot, nSplit):
+    if sortType == 'R':
+        random.shuffle(queue)
     if pivot == None:
         return queue, []
     if sortType == 'R':
@@ -68,12 +71,27 @@ def splitFn(queue, sortType, pivot, nSplit):
     queue = [] if idx == len(queue) else queue[idx:]
     return lines, queue
 
-import tempfile
-def bigsort(reader, writer, sortType='i', unique=False,head=-1, budget=0.8, nSplit=10, nLine=10000, tmpDir=None, sortFn=sortFn, splitFn=splitFn):
+
+import sys,tempfile
+def bigsort(reader, writer, sortType='i', unique=False, nHead=-1, budget=0.8, nSplit=10, nLine=10000, tmpDir=None, sortFn=sortFn, splitFn=splitFn):
     temp_dir = tempfile.TemporaryDirectory(dir=tmpDir)
-    sorter = BigSort(sortType=sortType, unique=unique,head=head, budget=budget, nSplit=nSplit, nLine=nLine, tmpDir=tmpDir, sortFn=sortFn, splitFn=splitFn)
-    lines=sorter.sort(reader, temp_dir.name)
+    sorter = BigSort(sortType=sortType, unique=unique, nHead=nHead, budget=budget, nSplit=nSplit, nLine=nLine, tmpDir=tmpDir, sortFn=sortFn, splitFn=splitFn)
+    lines = sorter.sort(reader, temp_dir.name)
     for l in lines:
         writer.write(l)
-    writer.flush()
-    temp_dir.cleanup()    
+    temp_dir.cleanup()
+
+
+def sortFile(src=None, tgt=None, sortType='i', unique=False, nHead=-1, budget=0.8, nSplit=10, nLine=10000, tmpDir=None, buffering=1024*1024):
+    if not src:
+        reader = sys.stdin
+    else:
+        if ' ' not in src:
+            src = "cat " + src
+        reader = os.popen(src)
+    if not tgt:
+        writer = sys.stdout
+    else:
+        writer = open(tgt, 'w', buffering=buffering)
+    bigsort(reader, writer, sortType=sortType, unique=unique, nHead=nHead, budget=budget, nSplit=nSplit, nLine=nLine, tmpDir=tmpDir)
+    writer.close()
