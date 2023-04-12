@@ -2,7 +2,6 @@ import operator
 import sys
 import psutil
 import os
-import bisect
 import argparse
 import random
 import tempfile
@@ -12,13 +11,10 @@ from multiprocessing import Queue, Process
 import logzero
 from logzero import logger
 logzero.loglevel(logzero.INFO)
-# logzero.loglevel(logzero.ERROR)
-
 
 def free():
     available = psutil.virtual_memory().available
     return available
-
 
 def _keyFn(x):
     return x
@@ -45,22 +41,6 @@ def bisect(arr, pivot, cmp, keyFn):
         else:
             r = m
     return r
-
-
-def splitList(queue, sortType, pivot, nSplit, keyFn):
-    if sortType == 'R':
-        random.shuffle(queue)
-    if pivot == None:
-        return queue, []
-    if sortType == 'R':
-        idx = len(queue)//nSplit
-    elif sortType == 'i':
-        idx = bisect(queue, pivot, cmp=lambda x, y: x <= y, keyFn=keyFn)
-    elif sortType == 'd':
-        idx = bisect(queue, pivot, cmp=lambda x, y: x >= y, keyFn=keyFn)
-    lines = queue[:idx]
-    queue = [] if idx == len(queue) else queue[idx:]
-    return lines, queue
 
 
 class Block:
@@ -165,48 +145,50 @@ class BigSort:
             queue += bucket
             pivot = Nodes[i+1].head if i != len(Nodes)-1 else None
             queue = sortArray(queue, self.sortType, self.keyFn)
-            lines, queue = splitList(queue, self.sortType, pivot, self.nSplit, self.keyFn)
+            if pivot == None:
+                idx=len(queue)
+            elif self.sortType == 'R':
+                idx = len(queue)//self.nSplit
+            elif self.sortType == 'i':
+                idx = bisect(queue, pivot, cmp=lambda x, y: x <= y, keyFn=self.keyFn)
+            elif self.sortType == 'd':
+                idx = bisect(queue, pivot, cmp=lambda x, y: x >= y, keyFn=self.keyFn)
+
             r1 = len(bucket)
-            w1 = len(lines)
+            w1 =idx
             n_read += r1
             n_write += w1
             logger.info(f"Node:{i}/{len(Nodes)} n_read:{n_read} -- n_write:{n_write} queue:{len(queue)}  r1:{r1} -> w1:{w1}   {r1-w1} ")
-            yield lines
+            for j in range(idx):
+                yield queue[j]
+            queue =  queue[idx:]            
         logger.info(f"reduce done! n_read:{n_read} --> n_write:{n_write} ")
 
-    def outflow(self, reciver):
-        last = None
-        for bucket in reciver:
-            for x in bucket:
-                self.n_readed += 1
-                if self.n_writed >= self.nHead >= 0:
-                    return
-                if self.unique and x == last:
-                    continue
-                last = x
-                self.n_writed += 1
-                yield x
-        logger.info(f" n_readed:{self.n_readed} n_writed:{self.n_writed}")
-
-    def sort(self, reader, tmpDir):
+    def sort(self, reader,writer, tmpDir):
         Nodes = self.map(reader, tmpDir)
 
         Nodes = [(self.keyFn(x.head), self.keyFn(x.tail), i, x) for i, x in enumerate(Nodes)]
         Nodes = sortArray(Nodes, self.sortType, _keyFn)
         Nodes = [x[-1] for x in Nodes]
-
         reciver = self.reduce(Nodes)
-        lines = self.outflow(reciver)
 
-        return lines
+        last = None
+        for x in reciver:
+            self.n_readed += 1
+            if self.n_writed >= self.nHead >= 0:
+                break
+            if self.unique and x == last:
+                continue
+            last = x
+            self.n_writed += 1
+            writer.write(x)
+        logger.info(f" n_readed:{self.n_readed} n_writed:{self.n_writed}")
 
 
 def bigsort(reader, writer, sortType='i', unique=False, keyFn=_keyFn, nHead=-1, budget=0.8, tmpDir=None, nSplit=10, nLine=10000):
     temp_dir = tempfile.TemporaryDirectory(dir=tmpDir)
     sorter = BigSort(sortType=sortType, unique=unique, keyFn=keyFn, nHead=nHead, budget=budget, tmpDir=tmpDir, nSplit=nSplit, nLine=nLine)
-    lines = sorter.sort(reader, temp_dir.name)
-    for l in lines:
-        writer.write(l)
+    sorter.sort(reader,writer, temp_dir.name)
     temp_dir.cleanup()
 
 
@@ -233,7 +215,6 @@ OrderingFn = {
     '!=': operator.ne,
     '>=': operator.ge,
     '>': operator.gt,
-
 }
 
 

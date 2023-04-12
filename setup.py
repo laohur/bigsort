@@ -15,7 +15,7 @@ setup(
     name="bigsort",
     # packages=find_packages(),
     py_modules=['bigsort'],
-    version='0.0.5',
+    version='0.0.7',
     description='sort big file or streams',
     long_description=long_description,
     long_description_content_type="text/markdown",
