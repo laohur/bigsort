@@ -203,8 +203,10 @@ def sortFile(src=None, tgt=None, sortType='i', unique=False, keyFn=_keyFn, nHead
         writer = sys.stdout
     else:
         writer = open(tgt, 'w', buffering=buffering)
+
     bigsort(reader, writer, sortType=sortType, unique=unique, keyFn=keyFn, nHead=nHead, budget=budget, tmpDir=tmpDir, nSplit=nSplit, nLine=nLine)
-    writer.close()
+    if tgt:
+        writer.close()
 
 
 # https://docs.python.org/3/library/operator.html
@@ -237,7 +239,8 @@ def main():
     parser = argparse.ArgumentParser()
     # parser.add_argument("src") # sys.stdin
     # parser.add_argument("tgt") # sys.stdout
-    parser.add_argument("-i", "--input", default=None)
+    parser.add_argument("-i", "--input", default="readme.md")
+    # parser.add_argument("-i", "--input", default=None)
     parser.add_argument("-o", "--output", default=None)
     parser.add_argument("--buffering", type=int, default=1024*1024)
     parser.add_argument("--nSplit", type=int, default=10)  # bigger if skew or shuffle
@@ -249,7 +252,7 @@ def main():
     parser.add_argument("-t", "--sep", default=None)  # seperator of line
     parser.add_argument("-k", "--key", default=None)  # sort by key; '3n,5'
     parser.add_argument("-n", "--number", type=int, default=0)  # key as number instead of string
-    parser.add_argument("--head", type=int, default=-1)  # number from head, like head -n
+    parser.add_argument("-g","--get", type=int, default=-1)  # get first number lines , like head -n
     parser.add_argument("-T", "--tmpDir", default=None)  # None "_tmp_"
     parser.add_argument("-c", "--checkOrdering")  # check file order; < > <= !=...
     args = parser.parse_args()
@@ -292,7 +295,7 @@ def main():
             reader = os.popen(src)
         check(reader, args.checkOrdering, keyFn=keyFn)
     else:
-        sortFile(args.input, args.output, sortType=args.sortType, unique=args.unique, keyFn=keyFn, nHead=args.head, budget=args.budget, tmpDir=args.tmpDir, nSplit=args.nSplit, nLine=args.nLine, buffering=args.buffering)
+        sortFile(args.input, args.output, sortType=args.sortType, unique=args.unique, keyFn=keyFn, nHead=args.get, budget=args.budget, tmpDir=args.tmpDir, nSplit=args.nSplit, nLine=args.nLine, buffering=args.buffering)
     # sortFile("cat bookcorpus.txt","sorted.txt")
     # check(open("sorted.txt"),"<=")
 

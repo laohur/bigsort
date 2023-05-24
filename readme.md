@@ -13,13 +13,14 @@ bigsort -i sorted.txt -c ">"  # check order
 bigsort -i  readme.md --unique=1   | bigsort --sortType=R > sorted.txt   # unique and shufle 
 seq 0  1123456789  | bigsort --sortType=d -T "./"  > sorted.txt  # just try sort 10^10 numbers
 wc -l *.py | bigsort   -k 1n,2  -b 1 -t " "   # sort by key
+bigsort -i  readme.md -s R -g 10   # get first 10 lines
 ```
 
 ### python
 
 ```python
 import os
-from bigsort import  bigsort, sortFile, check, bisect
+from bigsort import  bigsort, sortFile, check
 
 # sort in file
 sortFile("cat readme.md","sorted.txt")
