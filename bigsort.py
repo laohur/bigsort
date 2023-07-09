@@ -239,8 +239,8 @@ def main():
     parser = argparse.ArgumentParser()
     # parser.add_argument("src") # sys.stdin
     # parser.add_argument("tgt") # sys.stdout
-    parser.add_argument("-i", "--input", default="readme.md")
-    # parser.add_argument("-i", "--input", default=None)
+    # parser.add_argument("-i", "--input", default="readme.md")
+    parser.add_argument("-i", "--input", default=None)
     parser.add_argument("-o", "--output", default=None)
     parser.add_argument("--buffering", type=int, default=1024*1024)
     parser.add_argument("--nSplit", type=int, default=10)  # bigger if skew or shuffle
