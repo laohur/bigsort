@@ -47,7 +47,7 @@ def bisect(arr, pivot, cmp, keyFn):
 
 
 class Block:
-    def __init__(self, path, bucket, sortType, step,  keyFn) -> None:
+    def __init__(self, path, bucket, sortType, step, keyFn) -> None:
         self.path = path
         if not os.path.exists(path):
             os.makedirs(path)
@@ -71,7 +71,7 @@ class Node:
         if name == None:
             self.bucket = batch
         else:
-            writer = open(name, mode="w",errors="ignore")
+            writer = open(name, mode="w", errors="ignore")
             writer.writelines(batch)
             writer.close()
 
@@ -107,14 +107,15 @@ class BigSort:
         n_block = 0
         for l in reader:
             bucket.append(l)
-            if bucket and len(bucket) % 1000 == 0:
-                if free()/self.MEM  > 0.4:
+            if bucket and len(bucket) % 10000 == 0:
+                free = free()
+                if free > 2 * 1024**3 or free / self.MEM > 0.4:
                     continue
                 total += len(bucket)
                 block_dir = f"{folder}/block-{n_block}"
                 self.step = max(math.ceil(len(bucket) / self.nSplit), self.step)
-                logger.info(f"map:{total} {n_block} bucket:{len(bucket)} --> {block_dir} step:{self.step} nodes:{len(bucket)/self.step:.2f}")
-                block = Block(block_dir, bucket, self.sortType, self.step,  self.keyFn)
+                logger.info(f"map:{total} n_block:{n_block} bucket:{len(bucket)} --> {block_dir} step:{self.step} nodes:{len(bucket)/self.step:.2f}")
+                block = Block(block_dir, bucket, self.sortType, self.step, self.keyFn)
                 Nodes += block.Nodes
                 bucket = []
                 n_block += 1
@@ -186,12 +187,12 @@ class BigSort:
 
 def bigsort(reader, writer, sortType="i", unique=False, keyFn=_keyFn, nHead=-1, tmpDir=None, nSplit=10):
     temp_dir = tempfile.TemporaryDirectory(dir=tmpDir)
-    sorter = BigSort(sortType=sortType, unique=unique, keyFn=keyFn, nHead=nHead,  tmpDir=tmpDir, nSplit=nSplit)
+    sorter = BigSort(sortType=sortType, unique=unique, keyFn=keyFn, nHead=nHead, tmpDir=tmpDir, nSplit=nSplit)
     sorter.sort(reader, writer, temp_dir.name)
     temp_dir.cleanup()
 
 
-def sortFile(src=None, tgt=None, sortType="i", unique=False, keyFn=_keyFn, nHead=-1,tmpDir=None, nSplit=10):
+def sortFile(src=None, tgt=None, sortType="i", unique=False, keyFn=_keyFn, nHead=-1, tmpDir=None, nSplit=10):
     if not src:
         reader = sys.stdin
     else:
