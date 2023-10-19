@@ -14,11 +14,6 @@ from logzero import logger
 logzero.loglevel(logzero.INFO)
 
 
-def free():
-    available = psutil.virtual_memory().available
-    return available
-
-
 def _keyFn(x):
     return x
 
@@ -95,7 +90,8 @@ class BigSort:
             exit("unique only when sortType in i/d")
         self.keyFn = keyFn
         self.tmpDir = tmpDir
-        self.MEM = free()
+        self.MEM  = psutil.virtual_memory().available
+
         logger.info(f"free:{self.MEM//1024//1024}M")
         self.n_readed = 0
         self.n_writed = 0
@@ -108,8 +104,8 @@ class BigSort:
         for l in reader:
             bucket.append(l)
             if bucket and len(bucket) % 10000 == 0:
-                free = free()
-                if free > 2 * 1024**3 or free / self.MEM > 0.4:
+                available = psutil.virtual_memory().available
+                if available > 2 * 1024**3 or available / self.MEM > 0.4:
                     continue
                 total += len(bucket)
                 block_dir = f"{folder}/block-{n_block}"
