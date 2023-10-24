@@ -11,7 +11,11 @@ from multiprocessing import Queue, Process
 import logzero
 from logzero import logger
 
-logzero.loglevel(logzero.INFO)
+# logzero.loglevel(logzero.INFO)
+
+
+def free():
+    return psutil.virtual_memory().available // 1024**2
 
 
 def _keyFn(x):
@@ -79,10 +83,10 @@ class Node:
 
 
 class BigSort:
-    def __init__(self, sortType="i", unique=False, keyFn=_keyFn, nHead=-1, tmpDir=None, nSplit=10):
+    def __init__(self, sortType="i", unique=False, keyFn=_keyFn, nHead=-1, tmpDir=None, memory=1024, nSplit=10):
         self.nHead = nHead
         self.nSplit = nSplit
-        self.step = 1
+        self.memory = memory
         self.unique = unique
         assert sortType in "idR"
         self.sortType = sortType
@@ -90,9 +94,8 @@ class BigSort:
             exit("unique only when sortType in i/d")
         self.keyFn = keyFn
         self.tmpDir = tmpDir
-        self.MEM  = psutil.virtual_memory().available
-
-        logger.info(f"free:{self.MEM//1024//1024}M")
+        self.MEM = free()
+        logger.info(f"free:{self.MEM}M  budget:{self.MEM*self.memory:.2f}M")
         self.n_readed = 0
         self.n_writed = 0
 
@@ -101,17 +104,20 @@ class BigSort:
         bucket = []
         total = 0
         n_block = 0
+        chuck = 2
         for l in reader:
             bucket.append(l)
-            if bucket and len(bucket) % 10000 == 0:
-                available = psutil.virtual_memory().available
-                if available > 2 * 1024**3 or available / self.MEM > 0.4:
+            if bucket and len(bucket) % chuck == 0:
+                chuck = max(chuck, len(bucket))
+                usage = self.MEM - free()
+                # logger.debug((usage, self.MEM * self.memory))
+                if usage < self.MEM * self.memory:
                     continue
                 total += len(bucket)
                 block_dir = f"{folder}/block-{n_block}"
-                self.step = max(math.ceil(len(bucket) / self.nSplit), self.step)
-                logger.info(f"map:{total} n_block:{n_block} bucket:{len(bucket)} --> {block_dir} step:{self.step} nodes:{len(bucket)/self.step:.2f}")
-                block = Block(block_dir, bucket, self.sortType, self.step, self.keyFn)
+                step = math.ceil(max(len(bucket), chuck) / self.nSplit)
+                logger.info(f"map:{total} free:{free():.2f}M n_block:{n_block} bucket:{len(bucket)} --> {block_dir} step:{step} nodes:{len(bucket)/step:.2f}")
+                block = Block(block_dir, bucket, self.sortType, step, self.keyFn)
                 Nodes += block.Nodes
                 bucket = []
                 n_block += 1
@@ -125,9 +131,9 @@ class BigSort:
             else:
                 total += len(bucket)
                 block_dir = f"{folder}/block-{n_block}"
-                self.step = max(math.ceil(len(bucket) / self.nSplit), self.step)
-                logger.info(f"map:{total} {n_block} bucket:{len(bucket)} --> {block_dir} step:{self.step}")
-                block = Block(block_dir, bucket, self.sortType, self.step, self.keyFn)
+                step = math.ceil(max(len(bucket), chuck) / self.nSplit)
+                logger.info(f"map:{total} free:{free():.2f}M n_block:{n_block} bucket:{len(bucket)} --> {block_dir} step:{step} nodes:{len(bucket)/step:.2f}")
+                block = Block(block_dir, bucket, self.sortType, step, self.keyFn)
                 Nodes += block.Nodes
         logger.info(f"map done!  {vars(reader)}  maped:{total}  -->  Nodes:{len(Nodes)} ")
         return Nodes
@@ -181,14 +187,14 @@ class BigSort:
         logger.info(f" n_readed:{self.n_readed} n_writed:{self.n_writed}")
 
 
-def bigsort(reader, writer, sortType="i", unique=False, keyFn=_keyFn, nHead=-1, tmpDir=None, nSplit=10):
+def bigsort(reader, writer, sortType="i", unique=False, keyFn=_keyFn, nHead=-1, tmpDir=None, memory=1024, nSplit=10):
     temp_dir = tempfile.TemporaryDirectory(dir=tmpDir)
-    sorter = BigSort(sortType=sortType, unique=unique, keyFn=keyFn, nHead=nHead, tmpDir=tmpDir, nSplit=nSplit)
+    sorter = BigSort(sortType=sortType, unique=unique, keyFn=keyFn, nHead=nHead, tmpDir=tmpDir, memory=memory, nSplit=nSplit)
     sorter.sort(reader, writer, temp_dir.name)
     temp_dir.cleanup()
 
 
-def sortFile(src=None, tgt=None, sortType="i", unique=False, keyFn=_keyFn, nHead=-1, tmpDir=None, nSplit=10):
+def sortFile(src=None, tgt=None, sortType="i", unique=False, keyFn=_keyFn, nHead=-1, tmpDir=None, memory=1024, nSplit=10):
     if not src:
         reader = sys.stdin
     else:
@@ -200,7 +206,7 @@ def sortFile(src=None, tgt=None, sortType="i", unique=False, keyFn=_keyFn, nHead
     else:
         writer = open(tgt, "w")
 
-    bigsort(reader, writer, sortType=sortType, unique=unique, keyFn=keyFn, nHead=nHead, tmpDir=tmpDir, nSplit=nSplit)
+    bigsort(reader, writer, sortType=sortType, unique=unique, keyFn=keyFn, nHead=nHead, tmpDir=tmpDir, memory=memory, nSplit=nSplit)
     if tgt:
         writer.close()
 
@@ -238,6 +244,7 @@ def main():
     # parser.add_argument("-i", "--input", default="readme.md")
     parser.add_argument("-i", "--input", default=None)
     parser.add_argument("-o", "--output", default=None)
+    parser.add_argument("-m", "--memory", type=float, default=0.3, help="memory usage budget ratio of free memory")
     parser.add_argument("--nSplit", type=int, default=10)  # bigger if skew or shuffle
     parser.add_argument("-u", "--unique", default=False)  # remove repeat neighbor; only when sort
     parser.add_argument("-s", "--sortType", default="i")  # one of  'i/d/R': increase descend random
@@ -288,7 +295,7 @@ def main():
             reader = os.popen(src)
         check(reader, args.checkOrdering, keyFn=keyFn)
     else:
-        sortFile(args.input, args.output, sortType=args.sortType, unique=args.unique, keyFn=keyFn, nHead=args.get, tmpDir=args.tmpDir, nSplit=args.nSplit)
+        sortFile(args.input, args.output, sortType=args.sortType, unique=args.unique, keyFn=keyFn, nHead=args.get, tmpDir=args.tmpDir, memory=args.memory, nSplit=args.nSplit)
     # sortFile("cat bookcorpus.txt","sorted.txt")
     # check(open("sorted.txt"),"<=")
 
