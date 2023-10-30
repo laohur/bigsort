@@ -11,7 +11,7 @@ bigsort -i  readme.md -o sorted.txt  # default sort in increase
 cat readme.md |  bigsort --sortType=d --unique=1 > sorted.txt  # sort pipe, order in descend, unique
 bigsort -i sorted.txt -c ">"  # check order
 bigsort -i  readme.md --unique=1   | bigsort --sortType=R > sorted.txt   # unique and shufle 
-head -c 100000000  /dev/urandom  | python bigsort.py -m=0.01 --sortType=R -T="./" > sorted.txt
+head -c 100000000  /dev/urandom  | python bigsort.py -C=1000 -m=0.999 --sortType=R -T="./" > sorted.txt
 wc -l *.py | bigsort   -k 1n,2  -b 1 -t " "   # sort by key
 bigsort -i  readme.md -s R -g 10   # get first 10 lines
 ```
