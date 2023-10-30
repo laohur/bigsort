@@ -1,14 +1,15 @@
-import operator
-import sys
-import psutil
-import os
 import argparse
-import random
-import tempfile
+import gc
 import math
-from multiprocessing import Queue, Process
+import operator
+import os
+import random
+import sys
+import tempfile
+from multiprocessing import Process, Queue
 
 import logzero
+import psutil
 from logzero import logger
 
 # logzero.loglevel(logzero.INFO)
@@ -119,6 +120,7 @@ class BigSort:
                 Nodes += block.Nodes
                 bucket = []
                 n_block += 1
+                gc.collect()
 
         if bucket:
             bucket = sortArray(bucket, self.sortType)
@@ -162,6 +164,7 @@ class BigSort:
             for j in range(idx):
                 yield queue[j]
             queue = queue[idx:]
+            gc.collect()
         logger.info(f"reduce done! n_read:{n_read} --> n_write:{n_write} ")
 
     def sort(self, reader, writer, tmpDir):
@@ -244,7 +247,7 @@ def main():
     parser.add_argument("-o", "--output", default=None)
     parser.add_argument("-m", "--memory", type=float, default=0.5, help="memory remain ratio")
     parser.add_argument("-p", "--part", type=int, default=10, help="number of part")
-    parser.add_argument("-C", "--ChunkSize", type=int, default=10000, help="ChunkSize")
+    parser.add_argument("-C", "--ChunkSize", type=int, default=1000000, help="ChunkSize")
     parser.add_argument("-u", "--unique", default=False, help="remove repeat neighbor,work after sorted")
     parser.add_argument("-s", "--sortType", default="i", help=" one of  'i/d/R': increase descend random")
     parser.add_argument("-b", "--blanks", default=None, help="ignore-leading-blanks")
