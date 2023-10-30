@@ -84,7 +84,7 @@ class Node:
 
 
 class BigSort:
-    def __init__(self, sortType="i", unique=False, keyFn=_keyFn, nHead=-1, tmpDir=None, memory=0.4, chunk=10000, part=10):
+    def __init__(self, sortType="i", unique=False, keyFn=_keyFn, nHead=-1, tmpDir=None, memory=0.5, chunk=1000000, part=10):
         self.nHead = nHead
         self.chunk = chunk
         self.part = part
@@ -188,14 +188,14 @@ class BigSort:
         logger.info(f" n_readed:{self.n_readed} n_writed:{self.n_writed}")
 
 
-def bigsort(reader, writer, sortType="i", unique=False, keyFn=_keyFn, nHead=-1, tmpDir=None, memory=1024, chunk=10000, part=10):
+def bigsort(reader, writer, sortType="i", unique=False, keyFn=_keyFn, nHead=-1, tmpDir=None, memory=0.5, chunk=1000000, part=10):
     temp_dir = tempfile.TemporaryDirectory(dir=tmpDir)
     sorter = BigSort(sortType=sortType, unique=unique, keyFn=keyFn, nHead=nHead, tmpDir=tmpDir, memory=memory, chunk=chunk, part=part)
     sorter.sort(reader, writer, temp_dir.name)
     temp_dir.cleanup()
 
 
-def sortFile(src=None, tgt=None, sortType="i", unique=False, keyFn=_keyFn, nHead=-1, tmpDir=None, memory=1024, chunk=10000, part=10):
+def sortFile(src=None, tgt=None, sortType="i", unique=False, keyFn=_keyFn, nHead=-1, tmpDir=None, memory=0.5, chunk=1000000, part=10):
     if not src:
         reader = sys.stdin
     else:
