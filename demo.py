@@ -1,7 +1,8 @@
 
 import os
 
-from bigsort import  bigsort, sortFile, check, bisect
+# from bigsort import  BigSort,bigsort, sortFile, check, bisect
+from bigsort import  BigSort,bigsort, sortFile, check, bisect
 
 
 def test():
@@ -27,7 +28,7 @@ bigsort -i  readme.md -o sorted.txt  # default sort in increase
 cat readme.md |  bigsort --sortType=d --unique=1 > sorted.txt  # sort pipe, order in descend, unique
 bigsort -i sorted.txt -c ">"  # check order
 bigsort -i  readme.md --unique=1   | bigsort --sortType=R > sorted.txt   # unique and shufle 
-head -c 100000000  /dev/urandom  | python bigsort.py -C=1000 -m=0.9999 --sortType=R -T="./" > sorted.txt
+head -c 100000000  /dev/urandom  | python bigsort.py -C=1000 -m=0.999 --sortType=R -T="./" > sorted.txt
 wc -l *.py | bigsort   -k 1n,2  -b 1 -t " "   # sort by key
 """
 
@@ -46,4 +47,12 @@ src = "cat readme.md"
 tgt = "sorted.txt"
 sortFile(src, tgt, keyFn=keyFn)
 
+
 check(open("sorted.txt"),">")
+
+reader = os.popen("cat readme.md")
+sorter = BigSort()
+# output pipe
+sorted = sorter.sort(reader,tmpDir=".")
+for i,x in enumerate(sorted):
+    print(i,x)

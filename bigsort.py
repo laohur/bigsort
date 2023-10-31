@@ -167,7 +167,7 @@ class BigSort:
             gc.collect()
         logger.info(f"reduce done! n_read:{n_read} --> n_write:{n_write} ")
 
-    def sort(self, reader, writer, tmpDir):
+    def sort(self, reader, tmpDir):
         Nodes = self.map(reader, tmpDir)
 
         Nodes = [(self.keyFn(x.head), self.keyFn(x.tail), i, x) for i, x in enumerate(Nodes)]
@@ -182,16 +182,18 @@ class BigSort:
                 break
             if self.unique and x == last:
                 continue
+            yield x
             last = x
             self.n_writed += 1
-            writer.write(x)
         logger.info(f" n_readed:{self.n_readed} n_writed:{self.n_writed}")
 
 
 def bigsort(reader, writer, sortType="i", unique=False, keyFn=_keyFn, nHead=-1, tmpDir=None, memory=0.5, chunk=1000000, part=10):
     temp_dir = tempfile.TemporaryDirectory(dir=tmpDir)
     sorter = BigSort(sortType=sortType, unique=unique, keyFn=keyFn, nHead=nHead, tmpDir=tmpDir, memory=memory, chunk=chunk, part=part)
-    sorter.sort(reader, writer, temp_dir.name)
+    sorted = sorter.sort(reader, temp_dir.name)
+    for x in sorted:
+        writer.write(x)
     temp_dir.cleanup()
 
 
