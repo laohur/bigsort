@@ -135,7 +135,7 @@ class BigSort:
                 logger.info(f"map:{total} free:{free():.2f}M n_block:{n_block} bucket:{len(bucket)} --> {block_dir} step:{step} nodes:{len(bucket)/step:.2f}")
                 block = Block(block_dir, bucket, self.sortType, step, self.keyFn)
                 Nodes += block.Nodes
-        logger.info(f"map done!  {vars(reader)}  maped:{total}  -->  Nodes:{len(Nodes)} ")
+        logger.info(f"map done!  {reader}  maped:{total}  -->  Nodes:{len(Nodes)} ")
         return Nodes
 
     def reduce(self, Nodes):
