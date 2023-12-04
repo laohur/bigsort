@@ -142,6 +142,8 @@ class BigSort:
         queue = []
         n_read = 0
         n_write = 0
+        if self.sortType == "R" and len(Nodes) > 1:
+            random.shuffle(Nodes)
         for i, node in enumerate(Nodes):
             bucket = node.catch()
             queue += bucket
@@ -188,7 +190,7 @@ class BigSort:
         logger.info(f" n_readed:{self.n_readed} n_writed:{self.n_writed}")
 
 
-def bigsort(reader, writer, sortType="i", unique=False, keyFn=_keyFn, nHead=-1, tmpDir=None, memory=0.5, chunk=1000000, part=10):
+def bigsort(reader, writer, sortType="i", unique=False, keyFn=_keyFn, nHead=-1, tmpDir=None, memory=0.5, chunk=100000, part=10):
     temp_dir = tempfile.TemporaryDirectory(dir=tmpDir)
     sorter = BigSort(sortType=sortType, unique=unique, keyFn=keyFn, nHead=nHead, tmpDir=tmpDir, memory=memory, chunk=chunk, part=part)
     sorted = sorter.sort(reader, temp_dir.name)
@@ -197,7 +199,7 @@ def bigsort(reader, writer, sortType="i", unique=False, keyFn=_keyFn, nHead=-1, 
     temp_dir.cleanup()
 
 
-def sortFile(src=None, tgt=None, sortType="i", unique=False, keyFn=_keyFn, nHead=-1, tmpDir=None, memory=0.5, chunk=1000000, part=10):
+def sortFile(src=None, tgt=None, sortType="i", unique=False, keyFn=_keyFn, nHead=-1, tmpDir=None, memory=0.5, chunk=100000, part=10):
     if not src:
         reader = sys.stdin
     else:
@@ -249,7 +251,7 @@ def main():
     parser.add_argument("-o", "--output", default=None)
     parser.add_argument("-m", "--memory", type=float, default=0.5, help="memory remain ratio")
     parser.add_argument("-p", "--part", type=int, default=10, help="number of part")
-    parser.add_argument("-C", "--ChunkSize", type=int, default=1000000, help="ChunkSize")
+    parser.add_argument("-C", "--ChunkSize", type=int, default=10000, help="ChunkSize")
     parser.add_argument("-u", "--unique", default=False, help="remove repeat neighbor,work after sorted")
     parser.add_argument("-s", "--sortType", default="i", help=" one of  'i/d/R': increase descend random")
     parser.add_argument("-b", "--blanks", default=None, help="ignore-leading-blanks")
