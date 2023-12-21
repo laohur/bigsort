@@ -1,5 +1,4 @@
 import argparse
-import gc
 import math
 import operator
 import os
@@ -16,7 +15,7 @@ from logzero import logger
 
 
 def free():
-    return psutil.virtual_memory().available // 1024**2
+    return psutil.virtual_memory().available / 1024**2
 
 
 def _keyFn(x):
@@ -84,11 +83,10 @@ class Node:
 
 
 class BigSort:
-    def __init__(self, sortType="i", unique=False, keyFn=_keyFn, nHead=-1, tmpDir=None, memory=0.5, chunk=1000000, part=10):
+    def __init__(self, sortType="i", unique=False, keyFn=_keyFn, nHead=-1, tmpDir=None,  chunk=1000000, part=10):
         self.nHead = nHead
         self.chunk = chunk
         self.part = part
-        self.memory = memory
         self.unique = unique
         assert sortType in "idR"
         self.sortType = sortType
@@ -96,8 +94,6 @@ class BigSort:
             exit("unique only when sortType in i/d")
         self.keyFn = keyFn
         self.tmpDir = tmpDir
-        self.MEM = free()
-        logger.info(f"free:{self.MEM}M  remain:{self.MEM*self.memory:.2f}M")
         self.n_readed = 0
         self.n_writed = 0
 
@@ -108,10 +104,7 @@ class BigSort:
         n_block = 0
         for l in reader:
             bucket.append(l)
-            if bucket and len(bucket) % self.chunk == 0:
-                # logger.debug((usage, self.MEM * self.memory))
-                if free() > self.MEM * self.memory:
-                    continue
+            if len(bucket) >= self.chunk:
                 total += len(bucket)
                 block_dir = f"{folder}/block-{n_block}"
                 step = math.ceil(max(len(bucket), self.chunk) / self.part)
@@ -120,7 +113,6 @@ class BigSort:
                 Nodes += block.Nodes
                 bucket = []
                 n_block += 1
-                gc.collect()
 
         if bucket:
             bucket = sortArray(bucket, self.sortType)
@@ -166,7 +158,7 @@ class BigSort:
             for j in range(idx):
                 yield queue[j]
             queue = queue[idx:]
-            gc.collect()
+
         logger.info(f"reduce done! n_read:{n_read} --> n_write:{n_write} ")
 
     def sort(self, reader, tmpDir):
@@ -190,16 +182,14 @@ class BigSort:
         logger.info(f" n_readed:{self.n_readed} n_writed:{self.n_writed}")
 
 
-def bigsort(reader, writer, sortType="i", unique=False, keyFn=_keyFn, nHead=-1, tmpDir=None, memory=0.5, chunk=100000, part=10):
-    temp_dir = tempfile.TemporaryDirectory(dir=tmpDir)
-    sorter = BigSort(sortType=sortType, unique=unique, keyFn=keyFn, nHead=nHead, tmpDir=tmpDir, memory=memory, chunk=chunk, part=part)
-    sorted = sorter.sort(reader, temp_dir.name)
-    for x in sorted:
-        writer.write(x)
-    temp_dir.cleanup()
+def bigsort(reader, writer, sortType="i", unique=False, keyFn=_keyFn, nHead=-1, tmpDir=None, chunk=100000, part=10):
+    with tempfile.TemporaryDirectory(dir=tmpDir) as temp_dir:
+        sorter = BigSort(sortType=sortType, unique=unique, keyFn=keyFn, nHead=nHead, tmpDir=tmpDir, chunk=chunk, part=part)
+        sorted = sorter.sort(reader, temp_dir.name)
+        for x in sorted:
+            writer.write(x)
 
-
-def sortFile(src=None, tgt=None, sortType="i", unique=False, keyFn=_keyFn, nHead=-1, tmpDir=None, memory=0.5, chunk=100000, part=10):
+def sortFile(src=None, tgt=None, sortType="i", unique=False, keyFn=_keyFn, nHead=-1, tmpDir=None,  chunk=100000, part=10):
     if not src:
         reader = sys.stdin
     else:
@@ -211,7 +201,7 @@ def sortFile(src=None, tgt=None, sortType="i", unique=False, keyFn=_keyFn, nHead
     else:
         writer = open(tgt, "w")
 
-    bigsort(reader, writer, sortType=sortType, unique=unique, keyFn=keyFn, nHead=nHead, tmpDir=tmpDir, memory=memory, chunk=chunk, part=part)
+    bigsort(reader, writer, sortType=sortType, unique=unique, keyFn=keyFn, nHead=nHead, tmpDir=tmpDir,chunk=chunk, part=part)
     if tgt:
         writer.close()
 
@@ -249,7 +239,6 @@ def main():
     # parser.add_argument("-i", "--input", default="readme.md")
     parser.add_argument("-i", "--input", default=None)
     parser.add_argument("-o", "--output", default=None)
-    parser.add_argument("-m", "--memory", type=float, default=0.5, help="memory remain ratio")
     parser.add_argument("-p", "--part", type=int, default=10, help="number of part")
     parser.add_argument("-C", "--ChunkSize", type=int, default=10000, help="ChunkSize")
     parser.add_argument("-u", "--unique", default=False, help="remove repeat neighbor,work after sorted")
@@ -301,7 +290,7 @@ def main():
             reader = os.popen(src)
         check(reader, args.checkOrdering, keyFn=keyFn)
     else:
-        sortFile(args.input, args.output, sortType=args.sortType, unique=args.unique, keyFn=keyFn, nHead=args.get, tmpDir=args.tmpDir, memory=args.memory, chunk=args.ChunkSize, part=args.part)
+        sortFile(args.input, args.output, sortType=args.sortType, unique=args.unique, keyFn=keyFn, nHead=args.get, tmpDir=args.tmpDir, chunk=args.ChunkSize, part=args.part)
     # sortFile("cat bookcorpus.txt","sorted.txt")
     # check(open("sorted.txt"),"<=")
 
