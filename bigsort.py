@@ -185,7 +185,8 @@ class BigSort:
 def bigsort(reader, writer, sortType="i", unique=False, keyFn=_keyFn, nHead=-1, tmpDir=None, chunk=100000, part=10):
     with tempfile.TemporaryDirectory(dir=tmpDir) as temp_dir:
         sorter = BigSort(sortType=sortType, unique=unique, keyFn=keyFn, nHead=nHead, tmpDir=tmpDir, chunk=chunk, part=part)
-        sorted = sorter.sort(reader, temp_dir.name)
+        temp_dir_name = temp_dir if isinstance(temp_dir, str) else temp_dir.name
+        sorted = sorter.sort(reader, temp_dir_name)
         for x in sorted:
             writer.write(x)
 
